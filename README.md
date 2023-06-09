@@ -1,4 +1,4 @@
-# External HTTPS backend
+# External HTTP(S) backend
 Creates all required entities to expose an instance set publicly:
 - Instance group: each for each region
 - External Global IP
