@@ -1,27 +1,22 @@
 variable "random_postfix_length" {
-  type    = optional(string)
+  type    = string
   default = 8
 }
 
-variable "external_dns" {
-    type = string
-}
-variable "network_name" {
-    type = string
+variable "external_dns_list" {
+    type = list(string)
 }
 variable "compute_instances" {
-    type = object(any)
-}
-variable "compute_instances_target_tags" {
-    type = list(string)
+    type = any
+    default = {}
 }
 
 variable "healthcheck_port" {
-  type    = optional(string)
+  type    = string
   default = 443
 }
 variable "instance_group_named_port" {
-  type    = optional(string)
+  type    = string
   default = 443
 }
 variable "healthcheck_params" {

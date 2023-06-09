@@ -1,9 +1,15 @@
 locals {
   https_port = "443"
   zone_to_vms_map = {
-    for zone in distinct([ for instance in local.compute_instances: instance.zone ]): zone => [
-      for instance in local.compute_instances : instance.id if instance.zone == zone
+    for zone in distinct([ for instance in var.compute_instances: instance.zone ]): zone => [
+      for instance in var.compute_instances : instance.id if instance.zone == zone
     ]
+  }
+  dns_map = {
+    for dns in toset(var.external_dns_list) : dns => {
+      domain = dns
+      name = replace(dns, ".", "-")
+    }
   }
 }
 
@@ -64,33 +70,26 @@ resource "google_compute_url_map" "external_https_backend_url_map" {
   name = "external-https-backend-url-map-${random_string.random_postfix.result}"
   default_service = google_compute_backend_service.external_https_backend_service.id
 }
-resource "google_compute_managed_ssl_certificate" "external_https_backend_cert" {
-  name = "external-https-backend-cert-${random_string.random_postfix.result}"
+
+# FOR EACH
+resource "google_compute_managed_ssl_certificate" "external_https_backend_certs" {
+  for_each = local.dns_map
+  name = "external-https-backend-cert-for-${each.value.name}-${random_string.random_postfix.result}"
   managed {
-    domains = [ var.external_dns ]
+    domains = [ each.value.domain ]
   }
 }
-resource "google_compute_target_https_proxy" "external_https_backend_https_proxy" {
-  name = "external-https-backend-https-proxy-${random_string.random_postfix.result}"
+resource "google_compute_target_https_proxy" "external_https_backend_https_proxies" {
+  for_each = local.dns_map
+  name = "external-https-backend-https-proxy-for-${each.value.name}-${random_string.random_postfix.result}"
   url_map = google_compute_url_map.external_https_backend_url_map.self_link
-  ssl_certificates = [ google_compute_managed_ssl_certificate.external_https_backend_cert.id ]
+  ssl_certificates = [ google_compute_managed_ssl_certificate.external_https_backend_certs[each.key].id ]
 }
-resource "google_compute_global_forwarding_rule" "external_https_backend_forwarding_rule" {
-  name = "external-https-backend-forwarding-rule-${random_string.random_postfix.result}"
+resource "google_compute_global_forwarding_rule" "external_https_backend_forwarding_rules" {
+  for_each = local.dns_map
   load_balancing_scheme = "EXTERNAL"
-  target     = google_compute_target_https_proxy.external_https_backend_https_proxy.id
+  name = "external-https-backend-forwarding-rule-for-${each.value.name}-${random_string.random_postfix.result}"
+  target     = google_compute_target_https_proxy.external_https_backend_https_proxies[each.key].id
   ip_address = google_compute_global_address.external_https_backend_ip.id
   port_range = local.https_port
-}
-resource "google_compute_firewall" "external_https_backend_firewall" {
-    name = "external-https-backend-firewall-${random_string.random_postfix.result}"
-    network = var.network_name
-    allow {
-        protocol = "tcp"
-        ports    = [ local.https_port ]
-    }
-    source_ranges = [
-        "0.0.0.0/0"
-    ]
-    target_tags = var.compute_instances_target_tags
 }
