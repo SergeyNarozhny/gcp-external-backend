@@ -8,12 +8,20 @@ variable "external_dns_list" {
 }
 variable "compute_instances" {
     type = any
-    default = {}
+    default = []
 }
 
 variable "healthcheck_port" {
   type    = string
   default = 443
+}
+variable "default_https_port" {
+  type    = string
+  default = 443
+}
+variable "instance_group_named_protocol" {
+  type    = string
+  default = "https"
 }
 variable "instance_group_named_port" {
   type    = string
