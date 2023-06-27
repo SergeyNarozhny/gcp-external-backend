@@ -15,7 +15,7 @@ Creates all required entities to expose an instance set publicly:
 module "external_https_backend" {
   source = "git@gitlab.fbs-d.com:terraform/modules/external-https-backend.git"
 
-  external_dns_list = ["newlb.fbs.com"]
+  external_dns_list = ["*.cabinettest.com"]
   compute_instances = module.compute_instance_regional.instances
 
   depends_on = [ module.compute_instance_regional ]
@@ -26,7 +26,7 @@ module "external_https_backend" {
 module "external_https_backend" {
   source = "git@gitlab.fbs-d.com:terraform/modules/external-https-backend.git"
 
-  external_dns_list = ["newlb.fbs.com"]
+  external_dns_list = ["*.cabinettest.com"]
   compute_instances = module.compute_instance_regional.instances
   instance_group_named_protocol = "http"
   instance_group_named_port = "80"
@@ -41,7 +41,7 @@ module "external_https_backend" {
 ```
 resource "cloudflare_record" "domain_dns_confirmation_records" {
   for_each = {
-    for rec in flatten(module.cabinettest_backends.dns_resource_records) : rec.data => rec
+    for rec in flatten(module.external_https_backend.dns_resource_records) : rec.data => rec
   }
   zone_id  = data.cloudflare_zone.cabinettestcom_zone.id
   name     = each.value.name
