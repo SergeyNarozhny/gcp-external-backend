@@ -1,3 +1,12 @@
+locals {
+  dns_flat_list = {
+    for dns in var.external_dns_list : dns => {
+      dns = dns
+      i = index(var.external_dns_list, dns) + 1
+    }
+  }
+}
+
 # Generate random zone for each node
 resource "random_string" "random_postfix" {
   length    = var.random_postfix_length
@@ -9,7 +18,7 @@ resource "random_string" "random_postfix" {
 resource "google_compute_global_address" "external_backend_ip" {
   name = "external-backend-ip-${random_string.random_postfix.result}"
 }
-resource "google_compute_health_check" "external_backend_healthcheck"{
+resource "google_compute_health_check" "external_backend_healthcheck" {
   name = "external-backend-healthcheck-${random_string.random_postfix.result}"
   check_interval_sec  = var.healthcheck_params.check_interval_sec
   healthy_threshold   = var.healthcheck_params.healthy_threshold
@@ -59,16 +68,10 @@ resource "google_compute_url_map" "external_backend_url_map" {
   name = "external-backend-url-map-${random_string.random_postfix.result}"
   default_service = google_compute_backend_service.external_backend_service.id
 }
-resource "google_compute_managed_ssl_certificate" "external_backend_cert" {
-  name = "external-backend-cert-${random_string.random_postfix.result}"
-  managed {
-    domains = toset(var.external_dns_list)
-  }
-}
 resource "google_compute_target_https_proxy" "external_backend_proxy" {
   name = "external-backend-proxy-${random_string.random_postfix.result}"
   url_map = google_compute_url_map.external_backend_url_map.self_link
-  ssl_certificates = [ google_compute_managed_ssl_certificate.external_backend_cert.id ]
+  certificate_map = "//certificatemanager.googleapis.com/${google_certificate_manager_certificate_map.external_backend_cert_map.id}"
 }
 resource "google_compute_global_forwarding_rule" "external_backend_forwarding_rules" {
   load_balancing_scheme = "EXTERNAL"
@@ -76,4 +79,33 @@ resource "google_compute_global_forwarding_rule" "external_backend_forwarding_ru
   target     = google_compute_target_https_proxy.external_backend_proxy.id
   ip_address = google_compute_global_address.external_backend_ip.id
   port_range = var.default_https_port
+}
+
+# SSL certificate stuff
+resource "google_certificate_manager_dns_authorization" "external_backend_dns_auth" {
+  for_each    = local.dns_flat_list
+  name        = "dns-auth${each.value.i}-${random_string.random_postfix.result}"
+  domain      = replace(each.value.dns, "*.", "")
+}
+resource "google_certificate_manager_certificate" "external_backend_cert" {
+  name        = "external-backend-cert-${random_string.random_postfix.result}"
+  scope       = "DEFAULT"
+  managed {
+    domains = concat([
+      for domain in google_certificate_manager_dns_authorization.external_backend_dns_auth : domain.domain
+    ], [
+      for domain in google_certificate_manager_dns_authorization.external_backend_dns_auth : "*.${domain.domain}"
+    ])
+    dns_authorizations = [ for domain in google_certificate_manager_dns_authorization.external_backend_dns_auth : domain.id ]
+  }
+}
+resource "google_certificate_manager_certificate_map" "external_backend_cert_map" {
+  name = "external-backend-cert-map-${random_string.random_postfix.result}"
+}
+resource "google_certificate_manager_certificate_map_entry" "external_backend_cert_map_entry" {
+  for_each     = local.dns_flat_list
+  name         = "external-backend-cert-map-entry${each.value.i}-${random_string.random_postfix.result}"
+  map          = google_certificate_manager_certificate_map.external_backend_cert_map.name
+  certificates = [ google_certificate_manager_certificate.external_backend_cert.id ]
+  hostname     = each.value.dns
 }

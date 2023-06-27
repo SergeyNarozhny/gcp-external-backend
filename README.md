@@ -3,10 +3,10 @@ Creates all required entities to expose an instance set publicly:
 - Instance group: each for each region
 - External Global IP
 - LB: backend service + proxy + url map + forwarding rule + healthcheck
-- Domain ssl cert
+- SSL cert: Certificate manager, DNS authorization requests, certificate map + entries.
 
 ## Params
-- external_dns_list - доменные имена для сертификата (например, ["newlb.fbs.com"]) - все домены пойдут в один сертификат!
+- external_dns_list - доменные имена для сертификата, для wildcard-сертов допустимо одно значение, например, ["*.cabinettest.com"],
 - compute_instances - output instances из модуля compute-instance-regionalrule
 
 ## Usage example
@@ -36,7 +36,23 @@ module "external_https_backend" {
 }
 ```
 
+## DNS
+Для корректного выпуска сертификатов по схеме DNS-record авторизации, необходимо создать соответствующие записи (CNAME) на стороне CloudFlare или GCP. Значения записей доступны в output модуля `external_https_backend.dns_resource_records`. Пример для создания записей на CF через terraform:
+```
+resource "cloudflare_record" "domain_dns_confirmation_records" {
+  for_each = {
+    for rec in flatten(module.cabinettest_backends.dns_resource_records) : rec.data => rec
+  }
+  zone_id  = data.cloudflare_zone.cabinettestcom_zone.id
+  name     = each.value.name
+  value    = each.value.data
+  type     = each.value.type
+  proxied  = false
+}
+```
+
 ## Troubleshooting
+### for_each map ... cannot be determined
 In case of issues like:
 ```
 │ The "for_each" map includes keys derived from resource attributes that cannot be determined until apply, and so Terraform cannot
@@ -50,4 +66,6 @@ Use `terraform apply -target module.compute_instance_regional` to create dependa
 ## Outputs
 ```
 - external_https_backend.external_ip
+- external_https_backend.backend_cert
+- external_https_backend.dns_resource_records
 ```
