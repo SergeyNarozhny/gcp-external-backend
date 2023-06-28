@@ -6,8 +6,9 @@ Creates all required entities to expose an instance set publicly:
 - SSL cert: Certificate manager, DNS authorization requests, certificate map + entries.
 
 ## Params
-- external_dns_list - доменные имена для сертификата, для wildcard-сертов допустимо одно значение, например, ["*.cabinettest.com"],
-- compute_instances - output instances из модуля compute-instance-regionalrule
+- external_dns_list - доменные имена для сертификата, НЕ для wildcard-сертов, ожидается массив значений в формате ["newlb.cabinettest.com"],
+- external_wildcard_cert_map_id - ссылка на id wildcard_cert из модуля tf, в этом случае серты для external_dns_list НЕ ВЫПУСКАЮТСЯ,
+- compute_instances - output instances из модуля compute-instance-regional
 
 ## Usage example
 ### Example 1 - https frontend, https backend
@@ -15,7 +16,7 @@ Creates all required entities to expose an instance set publicly:
 module "external_https_backend" {
   source = "git@gitlab.fbs-d.com:terraform/modules/external-https-backend.git"
 
-  external_dns_list = ["*.cabinettest.com"]
+  external_dns_list = ["newlb.cabinettest.com"]
   compute_instances = module.compute_instance_regional.instances
 
   depends_on = [ module.compute_instance_regional ]
@@ -26,7 +27,7 @@ module "external_https_backend" {
 module "external_https_backend" {
   source = "git@gitlab.fbs-d.com:terraform/modules/external-https-backend.git"
 
-  external_dns_list = ["*.cabinettest.com"]
+  external_dns_list = ["newlb.cabinettest.com"]
   compute_instances = module.compute_instance_regional.instances
   instance_group_named_protocol = "http"
   instance_group_named_port = "80"
@@ -35,19 +36,18 @@ module "external_https_backend" {
   depends_on = [ module.compute_instance_regional ]
 }
 ```
-
-## DNS
-Для корректного выпуска сертификатов по схеме DNS-record авторизации, необходимо создать соответствующие записи (CNAME) на стороне CloudFlare или GCP. Значения записей доступны в output модуля `external_https_backend.dns_resource_records`. Пример для создания записей на CF через terraform:
+### Example 3 - external wildcard cert + https frontend, http backend
 ```
-resource "cloudflare_record" "domain_dns_confirmation_records" {
-  for_each = {
-    for rec in flatten(module.external_https_backend.dns_resource_records) : rec.data => rec
-  }
-  zone_id  = data.cloudflare_zone.cabinettestcom_zone.id
-  name     = each.value.name
-  value    = each.value.data
-  type     = each.value.type
-  proxied  = false
+module "external_https_backend" {
+  source = "git@gitlab.fbs-d.com:terraform/modules/external-https-backend.git"
+
+  external_wildcard_cert_map_id = module.wildcard_cert.cert_map_ip
+  compute_instances = module.compute_instance_regional.instances
+  instance_group_named_protocol = "http"
+  instance_group_named_port = "80"
+  healthcheck_port = "80"
+
+  depends_on = [ module.compute_instance_regional ]
 }
 ```
 
@@ -67,5 +67,4 @@ Use `terraform apply -target module.compute_instance_regional` to create dependa
 ```
 - external_https_backend.external_ip
 - external_https_backend.backend_cert
-- external_https_backend.dns_resource_records
 ```
