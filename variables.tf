@@ -5,6 +5,7 @@ variable "random_postfix_length" {
 
 variable "external_dns_list" {
     type = list(string)
+    default = []
 }
 variable "external_wildcard_cert_map_id" {
     type = string

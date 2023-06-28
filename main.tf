@@ -70,7 +70,7 @@ resource "google_compute_target_https_proxy" "external_backend_proxy" {
   name = "external-backend-proxy-${random_string.random_postfix.result}"
   url_map = google_compute_url_map.external_backend_url_map.self_link
   certificate_map = var.external_wildcard_cert_map_id != "" ? "//certificatemanager.googleapis.com/${var.external_wildcard_cert_map_id}" : null
-  ssl_certificates = var.external_wildcard_cert_map_id == "" ? [ google_compute_managed_ssl_certificate.external_backend_cert.id ] : null
+  ssl_certificates = var.external_wildcard_cert_map_id == "" ? [ google_compute_managed_ssl_certificate.external_backend_cert[0].id ] : null
 }
 resource "google_compute_global_forwarding_rule" "external_backend_forwarding_rules" {
   load_balancing_scheme = "EXTERNAL"

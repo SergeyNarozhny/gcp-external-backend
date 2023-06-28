@@ -41,7 +41,7 @@ module "external_https_backend" {
 module "external_https_backend" {
   source = "git@gitlab.fbs-d.com:terraform/modules/external-https-backend.git"
 
-  external_wildcard_cert_map_id = module.wildcard_cert.cert_map_ip
+  external_wildcard_cert_map_id = module.wildcard_cert.cert_map_id
   compute_instances = module.compute_instance_regional.instances
   instance_group_named_protocol = "http"
   instance_group_named_port = "80"
