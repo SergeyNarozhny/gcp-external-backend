@@ -15,6 +15,10 @@ variable "compute_instances" {
     type = any
     default = []
 }
+variable "allow_under_VPN_only" {
+    type = bool
+    default = false
+}
 
 variable "healthcheck_port" {
   type    = string
