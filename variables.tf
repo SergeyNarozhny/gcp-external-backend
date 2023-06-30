@@ -5,10 +5,19 @@ variable "random_postfix_length" {
 
 variable "external_dns_list" {
     type = list(string)
+    default = []
+}
+variable "external_wildcard_cert_map_id" {
+    type = string
+    default = ""
 }
 variable "compute_instances" {
     type = any
     default = []
+}
+variable "allow_under_VPN_only" {
+    type = bool
+    default = false
 }
 
 variable "healthcheck_port" {
