@@ -5,6 +5,9 @@ Creates all required entities to expose an instance set publicly:
 - LB: backend service + proxy + url map + forwarding rule + healthcheck
 - SSL cert: Certificate manager, DNS authorization requests, certificate map + entries.
 
+# Requirements
+- Instances should have `cf-probe` network tag (for proper LB check) and NO external IP (not needed for an exposure).
+
 ## Params
 - external_dns_list - доменные имена для сертификата, НЕ для wildcard-сертов, ожидается массив значений в формате ["newlb.cabinettest.com"],
 - external_wildcard_cert_map_id - ссылка на id wildcard_cert из модуля tf, в этом случае серты для external_dns_list НЕ ВЫПУСКАЮТСЯ,
