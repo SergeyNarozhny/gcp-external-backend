@@ -62,6 +62,10 @@ resource "google_compute_backend_service" "external_backend_service" {
   health_checks = [ google_compute_health_check.external_backend_healthcheck.self_link ]
   security_policy = var.allow_under_VPN_only ? google_compute_security_policy.external_backend_security_policy[0].self_link : null
 
+  log_config {
+    enable = true
+  }
+
   dynamic "backend" {
     for_each = google_compute_instance_group.external_backend_instance_groups
     iterator = instance_group
